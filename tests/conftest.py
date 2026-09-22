@@ -25,6 +25,7 @@ from fixam.models import (
     RequestState,
     ServiceRequest,
 )
+from fixam.services.ai import FakeAIClient
 from fixam.services.deps import Deps
 from fixam.services.whatsapp import FakeWhatsAppClient
 from fixam.services.media import FakeMediaStore
@@ -137,7 +138,7 @@ async def session(session_factory) -> AsyncGenerator[AsyncSession, None]:
 
 @pytest_asyncio.fixture
 async def fake_deps():
-    return Deps(whatsapp=FakeWhatsAppClient(), media=FakeMediaStore())
+    return Deps(whatsapp=FakeWhatsAppClient(), media=FakeMediaStore(), ai=FakeAIClient())
 
 
 def make_provider(**kwargs) -> Provider:

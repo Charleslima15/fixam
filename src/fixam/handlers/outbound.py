@@ -23,6 +23,7 @@ async def send_message_handler(
     template_name = payload.get("template_name")
     request_id_str = payload.get("request_id")
     request_id = uuid.UUID(request_id_str) if request_id_str else None
+    buttons = payload.get("buttons")
 
     await send_outbound(
         session,
@@ -31,4 +32,5 @@ async def send_message_handler(
         text,
         template_name=template_name,
         request_id=request_id,
+        buttons=buttons,
     )

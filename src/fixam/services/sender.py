@@ -25,6 +25,7 @@ async def send_outbound(
     *,
     template_name: str | None = None,
     request_id: uuid.UUID | None = None,
+    buttons: list[dict[str, str]] | None = None,
 ) -> Message:
     """Send a message, choosing free-form vs template based on window state.
 
@@ -43,13 +44,19 @@ async def send_outbound(
         and (now - window.last_inbound_at) < timedelta(hours=WINDOW_HOURS)
     )
 
-    if window_open:
+    if window_open and buttons:
+        meta_id = await whatsapp.send_buttons(recipient_phone, text, buttons)
+        used_template = None
+        msg_type = "interactive"
+    elif window_open:
         meta_id = await whatsapp.send_text(recipient_phone, text)
         used_template = None
+        msg_type = "text"
     else:
         tpl = template_name or "general_notification"
         meta_id = await whatsapp.send_template(recipient_phone, tpl)
         used_template = tpl
+        msg_type = "template"
 
     msg = Message(
         id=uuid.uuid4(),
@@ -57,7 +64,7 @@ async def send_outbound(
         direction="outbound",
         sender_phone_hash="system",
         recipient_phone_hash=recipient_hash,
-        message_type="text" if window_open else "template",
+        message_type=msg_type,
         template_name=used_template,
         request_id=request_id,
     )

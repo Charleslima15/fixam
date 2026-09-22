@@ -25,6 +25,7 @@ from .followup import Followup
 from .bad_lead_report import BadLeadReport
 from .operator import AuditLog, Operator
 from .config import Config
+from .model_call_log import ModelCallLog
 
 __all__ = [
     "Base",
@@ -44,6 +45,7 @@ __all__ = [
     "LedgerKind",
     "Media",
     "MediaStatus",
+    "ModelCallLog",
     "Message",
     "Offer",
     "OfferState",

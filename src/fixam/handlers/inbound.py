@@ -23,7 +23,6 @@ UNSUPPORTED_REPLY = (
     "Sorry, we can only handle text, photos, and voice messages right now."
 )
 
-CUSTOMER_ACK = "We received your message. A human will respond shortly."
 PROVIDER_ACK = "Message received."
 
 
@@ -89,9 +88,10 @@ async def process_inbound(
         )
         logger.info("Provider message msg_id=%s", msg_id)
     else:
+        # Route customer messages through intake (FR-INT)
         await enqueue_job(
             session,
-            "send_message",
-            {"to": sender_phone, "text": CUSTOMER_ACK},
+            "process_customer_intake",
+            {"message_id": str(msg_id), "sender_phone": sender_phone},
         )
-        logger.info("Customer message msg_id=%s", msg_id)
+        logger.info("Customer message routed to intake msg_id=%s", msg_id)

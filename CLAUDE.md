@@ -42,7 +42,7 @@ Meta WhatsApp Cloud API, MTN MoMo Collections, and the AI provider are each wrap
 8. Operator admin (`sqladmin`), metrics queries
 
 ## Current status
-Slice 3 complete — webhook ingress, message persistence, outbound sender. 22 tests passing.
+Slice 4 complete — customer intake, AI interface (fake), confirmation, abuse controls. 48 tests passing.
 
 ## Commands
 ```bash

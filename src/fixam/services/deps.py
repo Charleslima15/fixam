@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from fixam.services.ai import AIClient
     from fixam.services.whatsapp import WhatsAppClient
     from fixam.services.media import MediaStore
 
@@ -12,3 +13,4 @@ if TYPE_CHECKING:
 class Deps:
     whatsapp: WhatsAppClient
     media: MediaStore
+    ai: AIClient

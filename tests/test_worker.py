@@ -13,6 +13,7 @@ from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from fixam.models import Config, Job, JobState
+from fixam.services.ai import FakeAIClient
 from fixam.services.deps import Deps
 from fixam.services.jobs import enqueue_job
 from fixam.services.whatsapp import FakeWhatsAppClient
@@ -22,7 +23,7 @@ from fixam.worker import HANDLERS, _claim_one, register_handler, run_worker
 
 @pytest_asyncio.fixture
 async def fake_deps():
-    return Deps(whatsapp=FakeWhatsAppClient(), media=FakeMediaStore())
+    return Deps(whatsapp=FakeWhatsAppClient(), media=FakeMediaStore(), ai=FakeAIClient())
 
 
 @pytest_asyncio.fixture(autouse=True)

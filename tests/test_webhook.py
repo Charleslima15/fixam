@@ -417,7 +417,7 @@ async def test_provider_routed_separately(
 
     await _drain_worker(session_factory, fake_deps)
 
-    from fixam.handlers.inbound import PROVIDER_ACK, CUSTOMER_ACK
+    from fixam.handlers.inbound import PROVIDER_ACK
 
     # Check the send_message job payload text (via outbound message or fake client)
     # Since there's no window, the sender uses template, but the text is passed
