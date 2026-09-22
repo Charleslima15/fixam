@@ -77,3 +77,9 @@ class BadLeadStatus(str, enum.Enum):
     pending = "pending"
     approved = "approved"
     denied = "denied"
+
+
+class MediaStatus(str, enum.Enum):
+    pending = "pending"
+    stored = "stored"
+    failed = "failed"

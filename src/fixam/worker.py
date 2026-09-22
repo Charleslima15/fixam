@@ -11,16 +11,19 @@ import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Awaitable
+from typing import Any, Callable, Awaitable, TYPE_CHECKING
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from fixam.models import Config, Job, JobState
 
+if TYPE_CHECKING:
+    from fixam.services.deps import Deps
+
 logger = logging.getLogger(__name__)
 
-HandlerFn = Callable[[AsyncSession, dict[str, Any]], Awaitable[None]]
+HandlerFn = Callable[[AsyncSession, dict[str, Any], "Deps"], Awaitable[None]]
 HANDLERS: dict[str, HandlerFn] = {}
 
 
@@ -48,7 +51,7 @@ async def _get_backoff_base(session: AsyncSession) -> int:
     return int(val) if val else 30
 
 
-async def _claim_one(sf: async_sessionmaker[AsyncSession]) -> bool:
+async def _claim_one(sf: async_sessionmaker[AsyncSession], deps: Deps) -> bool:
     """Try to claim and execute one job. Returns True if a job was processed."""
     # Phase 1: claim
     async with sf() as session:
@@ -96,7 +99,7 @@ async def _claim_one(sf: async_sessionmaker[AsyncSession]) -> bool:
     try:
         async with sf() as session:
             async with session.begin():
-                await handler(session, claimed.payload)
+                await handler(session, claimed.payload, deps)
                 await session.execute(
                     update(Job).where(Job.id == claimed.id).values(
                         state=JobState.succeeded,
@@ -140,6 +143,7 @@ async def _claim_one(sf: async_sessionmaker[AsyncSession]) -> bool:
 
 async def run_worker(
     sf: async_sessionmaker[AsyncSession],
+    deps: Deps,
     *,
     poll_interval: float = 1.0,
     shutdown: asyncio.Event | None = None,
@@ -148,7 +152,7 @@ async def run_worker(
     _shutdown = shutdown or asyncio.Event()
     while not _shutdown.is_set():
         try:
-            processed = await _claim_one(sf)
+            processed = await _claim_one(sf, deps)
         except Exception:
             logger.exception("Worker loop error")
             processed = False
@@ -161,5 +165,10 @@ async def run_worker(
 
 async def main() -> None:
     from fixam.db import async_session_factory
+    from fixam.services.deps import Deps
+    from fixam.services.whatsapp import FakeWhatsAppClient
+    from fixam.services.media import FakeMediaStore
+    import fixam.handlers  # noqa: F401 — registers handlers
+    deps = Deps(whatsapp=FakeWhatsAppClient(), media=FakeMediaStore())
     logger.info("Worker starting")
-    await run_worker(async_session_factory)
+    await run_worker(async_session_factory, deps)

@@ -13,8 +13,16 @@ from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from fixam.models import Config, Job, JobState
+from fixam.services.deps import Deps
 from fixam.services.jobs import enqueue_job
+from fixam.services.whatsapp import FakeWhatsAppClient
+from fixam.services.media import FakeMediaStore
 from fixam.worker import HANDLERS, _claim_one, register_handler, run_worker
+
+
+@pytest_asyncio.fixture
+async def fake_deps():
+    return Deps(whatsapp=FakeWhatsAppClient(), media=FakeMediaStore())
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -44,13 +52,13 @@ async def _clean_handlers():
 
 
 @pytest.mark.asyncio
-async def test_concurrent_workers_no_duplicate_execution(session_factory):
+async def test_concurrent_workers_no_duplicate_execution(session_factory, fake_deps):
     """Two workers claiming concurrently never run the same job twice."""
     executed: list[uuid.UUID] = []
     lock = asyncio.Lock()
 
     @register_handler("test_concurrent")
-    async def handler(session: AsyncSession, payload: dict) -> None:
+    async def handler(session: AsyncSession, payload: dict, deps: Deps) -> None:
         async with lock:
             executed.append(uuid.UUID(payload["job_id"]))
         await asyncio.sleep(0.01)
@@ -64,7 +72,7 @@ async def test_concurrent_workers_no_duplicate_execution(session_factory):
     shutdown = asyncio.Event()
 
     async def worker_loop():
-        await run_worker(session_factory, poll_interval=0.05, shutdown=shutdown)
+        await run_worker(session_factory, fake_deps, poll_interval=0.05, shutdown=shutdown)
 
     t1 = asyncio.create_task(worker_loop())
     t2 = asyncio.create_task(worker_loop())
@@ -93,12 +101,12 @@ async def test_concurrent_workers_no_duplicate_execution(session_factory):
 
 
 @pytest.mark.asyncio
-async def test_retry_then_dead(session_factory):
+async def test_retry_then_dead(session_factory, fake_deps):
     """A failing handler retries with backoff, then goes dead after max_attempts."""
     call_count = 0
 
     @register_handler("test_fail")
-    async def handler(session: AsyncSession, payload: dict) -> None:
+    async def handler(session: AsyncSession, payload: dict, deps: Deps) -> None:
         nonlocal call_count
         call_count += 1
         raise RuntimeError("boom")
@@ -116,7 +124,7 @@ async def test_retry_then_dead(session_factory):
 
     shutdown = asyncio.Event()
     task = asyncio.create_task(
-        run_worker(session_factory, poll_interval=0.05, shutdown=shutdown)
+        run_worker(session_factory, fake_deps, poll_interval=0.05, shutdown=shutdown)
     )
 
     for attempt in range(3):
@@ -165,12 +173,12 @@ async def test_retry_then_dead(session_factory):
 
 
 @pytest.mark.asyncio
-async def test_enqueued_job_rolls_back_with_transaction(session_factory):
+async def test_enqueued_job_rolls_back_with_transaction(session_factory, fake_deps):
     """A job enqueued inside a transaction that rolls back never appears."""
     executed = []
 
     @register_handler("test_rollback")
-    async def handler(session: AsyncSession, payload: dict) -> None:
+    async def handler(session: AsyncSession, payload: dict, deps: Deps) -> None:
         executed.append(1)
 
     try:
@@ -184,7 +192,7 @@ async def test_enqueued_job_rolls_back_with_transaction(session_factory):
     # Run worker briefly — should find nothing
     shutdown = asyncio.Event()
     task = asyncio.create_task(
-        run_worker(session_factory, poll_interval=0.05, shutdown=shutdown)
+        run_worker(session_factory, fake_deps, poll_interval=0.05, shutdown=shutdown)
     )
     await asyncio.sleep(0.3)
     shutdown.set()
@@ -205,12 +213,12 @@ async def test_enqueued_job_rolls_back_with_transaction(session_factory):
 
 
 @pytest.mark.asyncio
-async def test_jobs_due_during_downtime_run_on_restart(session_factory):
+async def test_jobs_due_during_downtime_run_on_restart(session_factory, fake_deps):
     """Jobs scheduled in the past are picked up when the worker starts."""
     executed_ids: list[str] = []
 
     @register_handler("test_restart")
-    async def handler(session: AsyncSession, payload: dict) -> None:
+    async def handler(session: AsyncSession, payload: dict, deps: Deps) -> None:
         executed_ids.append(payload["id"])
 
     past = datetime.now(timezone.utc) - timedelta(minutes=10)
@@ -221,7 +229,7 @@ async def test_jobs_due_during_downtime_run_on_restart(session_factory):
 
     shutdown = asyncio.Event()
     task = asyncio.create_task(
-        run_worker(session_factory, poll_interval=0.05, shutdown=shutdown)
+        run_worker(session_factory, fake_deps, poll_interval=0.05, shutdown=shutdown)
     )
 
     for _ in range(100):

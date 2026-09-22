@@ -243,9 +243,10 @@ class TestAcceptanceTransaction:
 # ---------------------------------------------------------------------------
 
 class TestConcurrentAcceptance:
-    async def test_two_simultaneous_accepts_one_wins(self, session_factory):
+    async def test_two_simultaneous_accepts_one_wins(self, pooled_session_factory):
         """FR-ACC-02: two concurrent accepts on the same request produce
         exactly one assignment and one debit. Uses separate DB connections."""
+        session_factory = pooled_session_factory
         # --- setup ---
         async with session_factory() as setup_session:
             async with setup_session.begin():

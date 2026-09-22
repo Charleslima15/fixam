@@ -42,7 +42,7 @@ Meta WhatsApp Cloud API, MTN MoMo Collections, and the AI provider are each wrap
 8. Operator admin (`sqladmin`), metrics queries
 
 ## Current status
-Slice 2 complete — job runner with handler registry, retry/backoff, dead state, transactional enqueue. 14 tests passing.
+Slice 3 complete — webhook ingress, message persistence, outbound sender. 22 tests passing.
 
 ## Commands
 ```bash
@@ -55,9 +55,9 @@ DOCKER_HOST="npipe:////./pipe/dockerDesktopLinuxEngine" python -m pytest tests/ 
 # Run migrations against a database
 alembic upgrade head
 
-# Run web server (not yet wired)
+# Run web server
 uvicorn fixam.main:app --reload
 
-# Run worker
+# Run worker (needs Deps — currently uses fakes)
 python -c "import asyncio; from fixam.worker import main; asyncio.run(main())"
 ```

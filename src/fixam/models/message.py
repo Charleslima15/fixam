@@ -2,10 +2,11 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base, UUIDPrimaryKey
+from .enums import MediaStatus
 
 
 class Message(Base, UUIDPrimaryKey):
@@ -34,7 +35,22 @@ class Media(Base, UUIDPrimaryKey):
         ForeignKey("message.id"), nullable=False
     )
     media_type: Mapped[str] = mapped_column(String, nullable=False)
-    storage_key: Mapped[str] = mapped_column(String, nullable=False)
+    media_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    storage_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    status: Mapped[MediaStatus] = mapped_column(
+        ENUM(MediaStatus, name="media_status", create_type=False),
+        nullable=False,
+        server_default=MediaStatus.pending.value,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default="now()"
+    )
+
+
+class ContactWindow(Base):
+    __tablename__ = "contact_window"
+
+    phone_hash: Mapped[str] = mapped_column(String, primary_key=True)
+    last_inbound_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
     )

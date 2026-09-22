@@ -5,6 +5,7 @@ from .enums import (
     FollowupOutcome,
     JobState,
     LedgerKind,
+    MediaStatus,
     OfferState,
     PaymentState,
     RequestState,
@@ -18,7 +19,7 @@ from .offer import Offer
 from .assignment import Assignment
 from .credit_ledger import CreditLedger
 from .payment import Payment
-from .message import Media, Message
+from .message import ContactWindow, Media, Message
 from .job import Job
 from .followup import Followup
 from .bad_lead_report import BadLeadReport
@@ -33,6 +34,7 @@ __all__ = [
     "BadLeadReport",
     "BadLeadStatus",
     "Config",
+    "ContactWindow",
     "CreditLedger",
     "Customer",
     "Followup",
@@ -41,6 +43,7 @@ __all__ = [
     "JobState",
     "LedgerKind",
     "Media",
+    "MediaStatus",
     "Message",
     "Offer",
     "OfferState",
