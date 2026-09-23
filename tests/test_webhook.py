@@ -417,15 +417,15 @@ async def test_provider_routed_separately(
 
     await _drain_worker(session_factory, fake_deps)
 
-    from fixam.handlers.inbound import PROVIDER_ACK
-
-    # Check the send_message job payload text (via outbound message or fake client)
-    # Since there's no window, the sender uses template, but the text is passed
-    # We check that the fake received exactly one send and the job was for provider ack
+    # Provider messages now routed to process_provider_message handler
+    # which sends a command list for unrecognised commands
     async with session_factory() as s:
         result = await s.execute(
-            select(Job).where(Job.kind == "send_message", Job.state == JobState.succeeded)
+            select(Job).where(
+                Job.kind == "process_provider_message",
+                Job.state == JobState.succeeded,
+            )
         )
-        send_jobs = result.scalars().all()
-        assert len(send_jobs) == 1
-        assert send_jobs[0].payload["text"] == PROVIDER_ACK
+        provider_jobs = result.scalars().all()
+        assert len(provider_jobs) == 1
+        assert provider_jobs[0].payload["body"] == "BALANCE"

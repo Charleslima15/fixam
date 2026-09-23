@@ -79,12 +79,14 @@ async def _process_messages(session: AsyncSession, value: dict) -> None:
         msg_type = msg_data.get("type", "text")
 
         body_text = ""
+        button_reply_id = None
         if msg_type == "text":
             body_text = msg_data.get("text", {}).get("body", "")
         elif msg_type == "interactive":
             interactive = msg_data.get("interactive", {})
             if "button_reply" in interactive:
-                body_text = interactive["button_reply"].get("id", "")
+                button_reply_id = interactive["button_reply"].get("id", "")
+                body_text = button_reply_id
 
         msg = Message(
             id=uuid.uuid4(),
@@ -109,10 +111,13 @@ async def _process_messages(session: AsyncSession, value: dict) -> None:
             )
             session.add(media_row)
 
+        job_payload: dict = {"message_id": str(msg.id), "sender_phone": sender_phone}
+        if button_reply_id:
+            job_payload["button_reply_id"] = button_reply_id
         await enqueue_job(
             session,
             "process_inbound",
-            {"message_id": str(msg.id), "sender_phone": sender_phone},
+            job_payload,
         )
         logger.info("Inbound persisted msg_id=%s type=%s", msg.id, msg_type)
 

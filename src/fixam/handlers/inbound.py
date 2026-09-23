@@ -78,13 +78,20 @@ async def process_inbound(
     result = await session.execute(
         select(Provider.id).where(Provider.phone_hash == msg.sender_phone_hash)
     )
-    is_provider = result.scalar_one_or_none() is not None
+    provider_id = result.scalar_one_or_none()
 
-    if is_provider:
+    if provider_id is not None:
+        body = msg.body_encrypted.decode("utf-8", errors="replace") if msg.body_encrypted else None
+        button_reply_id = payload.get("button_reply_id")
         await enqueue_job(
             session,
-            "send_message",
-            {"to": sender_phone, "text": PROVIDER_ACK},
+            "process_provider_message",
+            {
+                "provider_id": str(provider_id),
+                "sender_phone": sender_phone,
+                "body": body,
+                "button_reply_id": button_reply_id,
+            },
         )
         logger.info("Provider message msg_id=%s", msg_id)
     else:

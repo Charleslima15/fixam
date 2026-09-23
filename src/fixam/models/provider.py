@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, LargeBinary, String
+from sqlalchemy import Boolean, ForeignKey, LargeBinary, SmallInteger, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, TimestampMixin, UUIDPrimaryKey
@@ -30,6 +30,9 @@ class Provider(Base, UUIDPrimaryKey, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, server_default="false")
     is_suspended: Mapped[bool] = mapped_column(Boolean, server_default="false")
     suspend_reason: Mapped[str | None] = mapped_column(String, nullable=True)
+    consecutive_unanswered: Mapped[int] = mapped_column(
+        SmallInteger, server_default="0", nullable=False
+    )
 
     trades: Mapped[list["ProviderTrade"]] = relationship(back_populates="provider")
     areas: Mapped[list["ProviderArea"]] = relationship(back_populates="provider")

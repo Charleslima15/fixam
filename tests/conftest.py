@@ -15,6 +15,7 @@ from testcontainers.community.postgres import PostgresContainer
 
 from fixam.models import (
     Base,
+    Config,
     CreditLedger,
     Customer,
     LedgerKind,
@@ -22,8 +23,12 @@ from fixam.models import (
     Offer,
     OfferState,
     Provider,
+    ProviderArea,
+    ProviderTrade,
+    Quarter,
     RequestState,
     ServiceRequest,
+    Trade,
 )
 from fixam.services.ai import FakeAIClient
 from fixam.services.deps import Deps
@@ -31,6 +36,25 @@ from fixam.services.whatsapp import FakeWhatsAppClient
 from fixam.services.media import FakeMediaStore
 
 _schema_created = False
+
+
+def _kill_idle_transactions(async_url: str) -> None:
+    """Terminate any PostgreSQL backends stuck 'idle in transaction'."""
+    eng = create_engine(_sync_url(async_url))
+    try:
+        with eng.connect() as conn:
+            conn.execute(text(
+                "SELECT pg_terminate_backend(pid) "
+                "FROM pg_stat_activity "
+                "WHERE datname = current_database() "
+                "AND pid != pg_backend_pid() "
+                "AND state = 'idle in transaction'"
+            ))
+            conn.commit()
+    except Exception:
+        pass
+    finally:
+        eng.dispose()
 
 
 def _sync_url(async_url: str) -> str:
@@ -82,6 +106,15 @@ def _ensure_schema(async_url: str) -> None:
         )
         raw.commit()
         cur.close()
+    with eng.begin() as conn:
+        for cfg in DISPATCH_CONFIG:
+            conn.execute(
+                text(
+                    "INSERT INTO config (key, value) VALUES (:k, :v) "
+                    "ON CONFLICT DO NOTHING"
+                ),
+                {"k": cfg.key, "v": cfg.value},
+            )
     eng.dispose()
     _schema_created = True
 
@@ -107,6 +140,7 @@ async def engine(db_url) -> AsyncGenerator[AsyncEngine, None]:
     eng = create_async_engine(db_url, echo=False, poolclass=NullPool)
     yield eng
     await eng.dispose()
+    _kill_idle_transactions(db_url)
 
 
 @pytest_asyncio.fixture
@@ -130,10 +164,19 @@ async def pooled_session_factory(pooled_engine) -> async_sessionmaker[AsyncSessi
 
 @pytest_asyncio.fixture
 async def session(session_factory) -> AsyncGenerator[AsyncSession, None]:
-    async with session_factory() as session:
-        async with session.begin():
-            yield session
-            await session.rollback()
+    sess = session_factory()
+    try:
+        await sess.begin()
+        yield sess
+    finally:
+        try:
+            await sess.rollback()
+        except Exception:
+            pass
+        try:
+            await sess.close()
+        except Exception:
+            pass
 
 
 @pytest_asyncio.fixture
@@ -203,3 +246,39 @@ def make_message(**kwargs) -> Message:
     )
     defaults.update(kwargs)
     return Message(**defaults)
+
+
+def make_trade(**kwargs) -> Trade:
+    defaults = dict(id=uuid.uuid4(), name=f"trade-{uuid.uuid4().hex[:6]}")
+    defaults.update(kwargs)
+    return Trade(**defaults)
+
+
+def make_quarter(**kwargs) -> Quarter:
+    defaults = dict(id=uuid.uuid4(), name=f"quarter-{uuid.uuid4().hex[:6]}")
+    defaults.update(kwargs)
+    return Quarter(**defaults)
+
+
+def make_provider_trade(provider_id: uuid.UUID, trade_id: uuid.UUID) -> ProviderTrade:
+    return ProviderTrade(provider_id=provider_id, trade_id=trade_id)
+
+
+def make_provider_area(provider_id: uuid.UUID, quarter_id: uuid.UUID) -> ProviderArea:
+    return ProviderArea(provider_id=provider_id, quarter_id=quarter_id)
+
+
+DISPATCH_CONFIG = [
+    Config(key="wave_sizes", value="2,3,0"),
+    Config(key="wave_sizes_now", value="3,5,0"),
+    Config(key="wave_sizes_established", value="2,3,0"),
+    Config(key="wave_timeout_seconds", value="300"),
+    Config(key="wave_timeout_seconds_now", value="180"),
+    Config(key="cold_start_offer_cap", value="3"),
+    Config(key="auto_off_threshold", value="3"),
+]
+
+
+async def seed_dispatch_config(session: AsyncSession) -> None:
+    """No-op: config rows are seeded once in _ensure_schema via sync connection."""
+    pass

@@ -26,6 +26,7 @@ from fixam.services.ai import (
     check_daily_cap,
     extract_with_retry,
 )
+from fixam.services.jobs import enqueue_job
 from fixam.services.prefilter import is_trivial
 from fixam.services.sender import send_outbound
 from fixam.services.transitions import OPEN_STATES, InvalidTransition, transition
@@ -377,6 +378,11 @@ async def _handle_confirmation(
             session, whatsapp, phone,
             "Got it! We're finding a provider for you now.",
             request_id=req.id,
+        )
+        await enqueue_job(
+            session,
+            "dispatch_request",
+            {"request_id": str(req.id)},
         )
     elif button_reply_id == "confirm_no":
         req.state = transition(req.state, RequestState.cancelled)

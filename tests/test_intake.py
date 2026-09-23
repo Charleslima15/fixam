@@ -56,9 +56,8 @@ async def ref_data(sf):
     """Seed trades and quarters; returns (trades, quarters) lists."""
     async with sf() as s:
         async with s.begin():
-            # Clear old reference data
-            await s.execute(text("DELETE FROM quarter"))
-            await s.execute(text("DELETE FROM trade"))
+            # Clear old reference data left by committed tests
+            await s.execute(text("TRUNCATE quarter, trade CASCADE"))
             trades = []
             for name in ("Plumber", "Electrician", "Carpenter"):
                 t = Trade(id=uuid.uuid4(), name=name)
