@@ -42,7 +42,7 @@ Meta WhatsApp Cloud API, MTN MoMo Collections, and the AI provider are each wrap
 8. Operator admin (`sqladmin`), metrics queries
 
 ## Current status
-Slice 5 complete — dispatch waves, acceptance flow, contact release, AVAILABLE/OFF commands, auto-OFF. 60 tests passing.
+Slice 6 complete — MTN MoMo payments, free credits, TOP UP/BALANCE commands, callback handling, payment polling. 72 tests passing.
 
 ## Commands
 ```bash

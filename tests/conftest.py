@@ -22,6 +22,8 @@ from fixam.models import (
     Message,
     Offer,
     OfferState,
+    Payment,
+    PaymentState,
     Provider,
     ProviderArea,
     ProviderTrade,
@@ -32,6 +34,7 @@ from fixam.models import (
 )
 from fixam.services.ai import FakeAIClient
 from fixam.services.deps import Deps
+from fixam.services.momo import FakeMoMoClient
 from fixam.services.whatsapp import FakeWhatsAppClient
 from fixam.services.media import FakeMediaStore
 
@@ -181,7 +184,12 @@ async def session(session_factory) -> AsyncGenerator[AsyncSession, None]:
 
 @pytest_asyncio.fixture
 async def fake_deps():
-    return Deps(whatsapp=FakeWhatsAppClient(), media=FakeMediaStore(), ai=FakeAIClient())
+    return Deps(
+        whatsapp=FakeWhatsAppClient(),
+        media=FakeMediaStore(),
+        ai=FakeAIClient(),
+        momo=FakeMoMoClient(),
+    )
 
 
 def make_provider(**kwargs) -> Provider:
@@ -276,7 +284,26 @@ DISPATCH_CONFIG = [
     Config(key="wave_timeout_seconds_now", value="180"),
     Config(key="cold_start_offer_cap", value="3"),
     Config(key="auto_off_threshold", value="3"),
+    Config(key="bundle_default", value='{"credits": 10, "price_fcfa": 5000}'),
+    Config(key="bundle_first_purchase", value='{"credits": 3, "price_fcfa": 1500, "first_purchase_only": true}'),
+    Config(key="free_credit_cap", value="5"),
+    Config(key="payment_poll_after_seconds", value="120"),
+    Config(key="payment_stuck_after_seconds", value="900"),
+    Config(key="low_balance_threshold", value="1"),
 ]
+
+
+def make_payment(provider_id: uuid.UUID, **kwargs) -> Payment:
+    defaults = dict(
+        id=uuid.uuid4(),
+        provider_id=provider_id,
+        our_reference=str(uuid.uuid4()),
+        amount_fcfa=5000,
+        credits=10,
+        state=PaymentState.pending,
+    )
+    defaults.update(kwargs)
+    return Payment(**defaults)
 
 
 async def seed_dispatch_config(session: AsyncSession) -> None:

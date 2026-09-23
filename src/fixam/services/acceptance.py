@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from fixam.models import (
     Assignment,
+    Config,
     CreditLedger,
     LedgerKind,
     Offer,
@@ -12,6 +13,7 @@ from fixam.models import (
     RequestState,
     ServiceRequest,
 )
+from fixam.services.jobs import enqueue_job
 
 
 class AcceptanceError(Exception):
@@ -100,5 +102,18 @@ async def accept_offer(
         .where(Offer.state.in_([OfferState.queued, OfferState.sent]))
         .values(state=OfferState.withdrawn)
     )
+
+    # FR-PRV-04: low-balance warning
+    new_balance = balance - 1
+    threshold_row = await session.execute(
+        select(Config.value).where(Config.key == "low_balance_threshold")
+    )
+    threshold = int(threshold_row.scalar_one_or_none() or "1")
+    if new_balance <= threshold:
+        await enqueue_job(
+            session,
+            "send_low_balance_warning",
+            {"provider_id": str(provider_id), "balance": new_balance},
+        )
 
     return assignment

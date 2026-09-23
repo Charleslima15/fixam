@@ -6,3 +6,4 @@ import fixam.handlers.intake  # noqa: F401
 import fixam.handlers.expiry  # noqa: F401
 import fixam.handlers.dispatch  # noqa: F401
 import fixam.handlers.provider_commands  # noqa: F401
+import fixam.handlers.payments  # noqa: F401

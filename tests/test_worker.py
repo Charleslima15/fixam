@@ -23,7 +23,8 @@ from fixam.worker import HANDLERS, _claim_one, register_handler, run_worker
 
 @pytest_asyncio.fixture
 async def fake_deps():
-    return Deps(whatsapp=FakeWhatsAppClient(), media=FakeMediaStore(), ai=FakeAIClient())
+    from fixam.services.momo import FakeMoMoClient
+    return Deps(whatsapp=FakeWhatsAppClient(), media=FakeMediaStore(), ai=FakeAIClient(), momo=FakeMoMoClient())
 
 
 @pytest_asyncio.fixture(autouse=True)

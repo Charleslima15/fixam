@@ -576,10 +576,12 @@ async def test_expire_unconfirmed_FR_INT_06(sf, ref_data):
                 .values(updated_at=datetime.now(timezone.utc) - timedelta(minutes=60))
             )
 
+    from fixam.services.momo import FakeMoMoClient
     deps = Deps(
         whatsapp=FakeWhatsAppClient(),
         media=FakeMediaStore(),
         ai=FakeAIClient(),
+        momo=FakeMoMoClient(),
     )
 
     async with sf() as s:

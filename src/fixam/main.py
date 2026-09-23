@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from fixam.config import settings
 from fixam.db import get_session
-from fixam.models import Media, MediaStatus, Message
+from fixam.models import Media, MediaStatus, Message, Payment
 from fixam.services.jobs import enqueue_job
 from fixam.services.whatsapp import verify_signature
 
@@ -143,3 +143,30 @@ async def _process_statuses(session: AsyncSession, value: dict) -> None:
             logger.info(
                 "Status update msg_id=%s status=%s", msg.id, status
             )
+
+
+@app.post("/momo/callback", status_code=200, response_model=None)
+async def momo_callback(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict:
+    """MTN MoMo callback — notification only, enqueues verification job."""
+    payload = await request.json()
+    external_id = payload.get("externalId", "")
+
+    if not external_id:
+        logger.warning("MoMo callback missing externalId")
+        return {"status": "ignored"}
+
+    result = await session.execute(
+        select(Payment.id).where(Payment.our_reference == external_id)
+    )
+    payment_id = result.scalar_one_or_none()
+    if payment_id is None:
+        logger.warning("MoMo callback for unknown externalId=%s", external_id)
+        return {"status": "ignored"}
+
+    await enqueue_job(session, "confirm_payment", {"payment_id": str(payment_id)})
+    await session.commit()
+    logger.info("MoMo callback enqueued confirm_payment for payment=%s", payment_id)
+    return {"status": "ok"}

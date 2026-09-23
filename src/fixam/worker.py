@@ -169,7 +169,13 @@ async def main() -> None:
     from fixam.services.whatsapp import FakeWhatsAppClient
     from fixam.services.media import FakeMediaStore
     from fixam.services.ai import FakeAIClient
+    from fixam.services.momo import FakeMoMoClient
     import fixam.handlers  # noqa: F401 — registers handlers
-    deps = Deps(whatsapp=FakeWhatsAppClient(), media=FakeMediaStore(), ai=FakeAIClient())
+    deps = Deps(
+        whatsapp=FakeWhatsAppClient(),
+        media=FakeMediaStore(),
+        ai=FakeAIClient(),
+        momo=FakeMoMoClient(),
+    )
     logger.info("Worker starting")
     await run_worker(async_session_factory, deps)
